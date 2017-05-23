@@ -210,7 +210,7 @@ class AWSRequestsAuth(requests.auth.AuthBase):
         """
         Uses stored AWS credentials or IAM role to dynamically generate an AWSRequestsAuth without
         explicitly passing keys/token.
-        The credentials are pull from the system via boto. boto pulls AWS credentials in the order listed
+        The credentials are pulled from the system via boto. boto pulls AWS credentials in the order listed
         here: http://boto3.readthedocs.io/en/latest/guide/configuration.html#configuring-credentials
         """
         session = boto3.Session()
