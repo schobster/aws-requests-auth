@@ -1,6 +1,7 @@
 import hmac
 import hashlib
 import datetime
+
 try:
     # python 2
     from urllib import quote
@@ -10,6 +11,7 @@ except ImportError:
     from urllib.parse import quote, urlparse
 
 import requests
+import boto3
 
 
 def sign(key, msg):
@@ -39,11 +41,11 @@ class AWSRequestsAuth(requests.auth.AuthBase):
     """
 
     def __init__(self,
-                 aws_access_key,
-                 aws_secret_access_key,
-                 aws_host,
-                 aws_region,
-                 aws_service,
+                 aws_access_key=None,
+                 aws_secret_access_key=None,
+                 aws_host=None,
+                 aws_region=None,
+                 aws_service=None,
                  aws_token=None):
         """
         Example usage for talking to an AWS Elasticsearch Service:
@@ -57,6 +59,9 @@ class AWSRequestsAuth(requests.auth.AuthBase):
 
         The aws_token is optional and is used only if you are using STS
         temporary credentials.
+        
+        If aws_access_key, aws_secret_access_key, and aws_token are all not passed, these credentials
+        will be dynamically generated via boto3 (see generate_dynamic_auth() )
         """
         self.aws_access_key = aws_access_key
         self.aws_secret_access_key = aws_secret_access_key
@@ -64,6 +69,9 @@ class AWSRequestsAuth(requests.auth.AuthBase):
         self.aws_region = aws_region
         self.service = aws_service
         self.aws_token = aws_token
+
+        if aws_access_key is None and aws_secret_access_key is None and aws_token is None:
+            self.generate_dynamic_auth()
 
     def __call__(self, r):
         """
@@ -116,7 +124,7 @@ class AWSRequestsAuth(requests.auth.AuthBase):
         # SHA-256 (recommended)
         algorithm = 'AWS4-HMAC-SHA256'
         credential_scope = (datestamp + '/' + self.aws_region + '/' +
-                            self.service +'/' + 'aws4_request')
+                            self.service + '/' + 'aws4_request')
         string_to_sign = (algorithm + '\n' + amzdate + '\n' + credential_scope +
                           '\n' + hashlib.sha256(canonical_request.encode('utf-8')).hexdigest())
 
@@ -197,3 +205,16 @@ class AWSRequestsAuth(requests.auth.AuthBase):
                 canonical_querystring += u'='.join([key, val])
 
         return canonical_querystring
+
+    def generate_dynamic_auth(self):
+        """
+        Uses stored AWS credentials or IAM role to dynamically generate an AWSRequestsAuth without
+        explicitly passing keys/token.
+        The credentials are pull from the system via boto. boto pulls AWS credentials in the order listed
+        here: http://boto3.readthedocs.io/en/latest/guide/configuration.html#configuring-credentials
+        """
+        session = boto3.Session()
+        credentials = session.get_credentials()
+        self.aws_access_key = credentials.access_key
+        self.aws_secret_access_key = credentials.secret_key
+        self.aws_token = credentials.token or None
