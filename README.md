@@ -90,3 +90,17 @@ def lambda_handler(event, context):
     print 'My lambda finished executing'                           
 ```
 `'AWS_ACCESS_KEY_ID'`, `'AWS_SECRET_ACCESS_KEY'`, `'AWS_SESSION_TOKEN'` are [reserved environment variables in AWS lambdas](https://docs.aws.amazon.com/lambda/latest/dg/current-supported-versions.html#lambda-environment-variables).
+
+## Dynamic credentials via boto
+boto allows for dynamically pulling credentials from environment variables, AWS config files, IAM Role, and other locations ([see here for more info](http://boto3.readthedocs.io/en/latest/guide/configuration.html#configuring-credentials))
+If you would like to take advantage of this functionality, simply do not pass any key/token into the constructor and it will
+dynamically pull credentials following boto3's policy (see above link). You must still provide a host, region, and service:
+
+```python
+import requests
+from aws_requests_auth.aws_auth import AWSRequestsAuth
+
+auth = AWSRequestsAuth(aws_host='search-service-foobar.us-east-1.es.amazonaws.com',
+                       aws_region='us-east-1',
+                       aws_service='es')
+```
